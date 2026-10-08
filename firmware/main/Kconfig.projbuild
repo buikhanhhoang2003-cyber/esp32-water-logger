@@ -1,41 +1,106 @@
-menu "Example Configuration"
+menu "Water logger"
+    config LOGGER_BUILDING_ID
+        string "Building identifier"
+        default "building_1"
 
-    choice EXAMPLE_CERT_VALIDATION
-        prompt "Certificate validation method"
-        default EXAMPLE_CERT_VALIDATE_BUNDLE
-        help
-            Choose how the broker's TLS server certificate is validated.
-            - Certificate bundle (default).
-            - Embedded certificate
-
-        config EXAMPLE_CERT_VALIDATE_BUNDLE
-            bool "Certificate bundle"
-
-        config EXAMPLE_CERT_VALIDATE_MOSQUITTO_CA
-            bool "Embedded Certificate"
-
-    endchoice
-
-    config EXAMPLE_MQTT_BROKER_URI
-        string "MQTT broker URI"
-        default "mqtts://test.mosquitto.org:8886"
-        default "mqtts://test.mosquitto.org:8883" if EXAMPLE_CERT_VALIDATE_MOSQUITTO_CA
-        help
-            URI to the MQTT broker.
-            When using the example broker the port must be set to 8883 if testing
-            embedded certificate
-
-    config EXAMPLE_BROKER_CERTIFICATE_OVERRIDE
-        string "Broker certificate override (PEM body)"
+    config LOGGER_ROOMS
+        string "Room slave pairs (electric:water,...)"
         default ""
         help
-            Optional: override server certificate by embedding a PEM constructed
-            from this base64 body. Leave empty to use the certificate bundle or the
-            embedded Mosquitto CA. Provide only the base64 payload without the
-            BEGIN/END markers.
+            Room numbers follow list order. Example: 1:2,3:4.
+            IDs must be unique and between 1 and 247; at most 16 rooms.
 
-    config EXAMPLE_BROKER_CERTIFICATE_OVERRIDDEN
-        bool
-        default y if EXAMPLE_BROKER_CERTIFICATE_OVERRIDE != ""
+    config LOGGER_UART_PORT
+        int "RS485 UART port"
+        range 1 2
+        default 2
 
+    config LOGGER_TX_GPIO
+        int "RS485 TX GPIO (-1 until wired)"
+        range -1 48
+        default -1
+
+    config LOGGER_RX_GPIO
+        int "RS485 RX GPIO (-1 until wired)"
+        range -1 48
+        default -1
+
+    config LOGGER_RTS_GPIO
+        int "RS485 RTS/DE GPIO (-1 until wired)"
+        range -1 48
+        default -1
+
+    config LOGGER_BAUD
+        int "RS485 baud rate"
+        range 1200 115200
+        default 115200
+
+    choice LOGGER_PARITY
+        prompt "RS485 parity"
+        default LOGGER_PARITY_NONE
+        config LOGGER_PARITY_NONE
+            bool "None"
+        config LOGGER_PARITY_EVEN
+            bool "Even"
+        config LOGGER_PARITY_ODD
+            bool "Odd"
+    endchoice
+
+    choice LOGGER_STOP_BITS
+        prompt "RS485 stop bits"
+        default LOGGER_STOP_BITS_ONE
+        config LOGGER_STOP_BITS_ONE
+            bool "One"
+        config LOGGER_STOP_BITS_TWO
+            bool "Two"
+    endchoice
+
+    config LOGGER_TIMEOUT_MS
+        int "Modbus response timeout (ms)"
+        range 100 10000
+        default 1000
+
+    config LOGGER_RETRIES
+        int "Modbus retries"
+        range 0 5
+        default 2
+
+    config LOGGER_POLL_MS
+        int "Poll interval (ms)"
+        range 1000 3600000
+        default 10000
+
+    config LOGGER_MQTT_URI
+        string "MQTT broker URI (empty disables MQTT)"
+        default ""
+
+    config LOGGER_WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+
+    config LOGGER_WIFI_PASSWORD
+        string "Wi-Fi password"
+        default ""
+
+    config LOGGER_MQTT_TOPIC
+        string "MQTT telemetry topic"
+        default "water-logger/readings"
+
+    config LOGGER_MQTT_QOS
+        int "MQTT QoS"
+        range 0 2
+        default 1
+
+    config LOGGER_MQTT_USER
+        string "MQTT username"
+        default ""
+
+    config LOGGER_MQTT_PASSWORD
+        string "MQTT password"
+        default ""
+
+    config LOGGER_MQTT_RECONNECT_MS
+        int "MQTT reconnect interval (ms)"
+        range 1000 600000
+        default 10000
 endmenu
