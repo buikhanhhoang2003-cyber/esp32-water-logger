@@ -1,6 +1,2 @@
-idf_component_register(
-    SRCS "app_main.c"
-    PRIV_REQUIRES esp-tls esp_wifi esp_event nvs_flash
-    INCLUDE_DIRS "."
-    EMBED_TXTFILES "mosquitto.org.crt"
-)
+idf_component_register(SRCS "main.c" PRIV_REQUIRES
+    modbus meter telemetry mqtt esp_event esp_netif esp_timer nvs_flash)
