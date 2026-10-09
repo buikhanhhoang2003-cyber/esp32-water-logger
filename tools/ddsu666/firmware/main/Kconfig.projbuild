@@ -1,0 +1,34 @@
+menu "RS485 bridge (DDSU666 tool)"
+    config BRIDGE_UART_PORT
+        int "RS485 UART port"
+        range 1 2
+        default 2
+        help
+            UART0 stays the USB link to the PC.
+
+    config BRIDGE_TX_GPIO
+        int "RS485 TX GPIO (ESP32 -> transceiver DI)"
+        range 0 48
+        default 16
+
+    config BRIDGE_RX_GPIO
+        int "RS485 RX GPIO (transceiver RO -> ESP32)"
+        range 0 48
+        default 17
+
+    config BRIDGE_DE_GPIO
+        int "RS485 DE/RE GPIO (-1 = transceiver switches direction itself)"
+        range -1 48
+        default -1
+        help
+            Leave -1 for boards with an auto-direction RS485 transceiver.
+            Set a GPIO when DE/RE must be driven by the ESP32; the UART then
+            runs in RS485 half-duplex mode and drives it as RTS.
+
+    config BRIDGE_DEFAULT_BAUD
+        int "RS485 baud rate after boot"
+        range 1200 115200
+        default 9600
+        help
+            The PC tool sets the baud rate and frame format itself after connecting.
+endmenu

@@ -34,3 +34,25 @@ NVS is erased and initialized again only when `nvs_flash_init()` reports no free
 pages or a new NVS version. An empty broker URI is an explicit offline mode and
 does not select a substitute broker. ESP-MQTT and the Wi-Fi event handler manage
 reconnection after their clients have started.
+
+# Repository layout
+
+| Path | Contents |
+| --- | --- |
+| `firmware/` | ESP-IDF project of the logger (`water_logger`) |
+| `components/` | Logger components: `modbus`, `meter`, `telemetry`, `logger_mqtt` |
+| `tools/ddsu666/` | PC app and ESP32 RS485 bridge firmware to read and configure CHINT DDSU666 meters ([README](tools/ddsu666/README.md)) |
+| `references/` | Vendor sample code for the iMaker ESP32 board |
+
+# Build
+
+Requires ESP-IDF 5.3 or later.
+
+```
+idf.py -C firmware set-target esp32
+idf.py -C firmware menuconfig        # "Water logger": Wi-Fi, MQTT broker, building and room IDs
+idf.py -C firmware -p COM16 flash monitor
+```
+
+RS485 defaults (UART2, TX GPIO16, RX GPIO17, no DE pin, 9600 bps 8N1) match the iMaker board and
+a DDSU666 meter. `sdkconfig` holds Wi-Fi and MQTT credentials and is not committed.
