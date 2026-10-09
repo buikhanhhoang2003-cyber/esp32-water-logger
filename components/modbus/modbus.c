@@ -19,14 +19,17 @@ static esp_err_t check_pins(void)
     }
     if (!GPIO_IS_VALID_OUTPUT_GPIO(CONFIG_LOGGER_TX_GPIO) ||
         !GPIO_IS_VALID_GPIO(CONFIG_LOGGER_RX_GPIO) ||
-        !GPIO_IS_VALID_OUTPUT_GPIO(CONFIG_LOGGER_RTS_GPIO)) {
+        CONFIG_LOGGER_TX_GPIO == CONFIG_LOGGER_RX_GPIO) {
         return ESP_ERR_INVALID_ARG;
     }
-    if (CONFIG_LOGGER_TX_GPIO == CONFIG_LOGGER_RX_GPIO ||
+    /* RTS -1: the transceiver switches direction itself (iMaker board); uart_set_pin() leaves it unrouted. */
+#if CONFIG_LOGGER_RTS_GPIO >= 0
+    if (!GPIO_IS_VALID_OUTPUT_GPIO(CONFIG_LOGGER_RTS_GPIO) ||
         CONFIG_LOGGER_TX_GPIO == CONFIG_LOGGER_RTS_GPIO ||
         CONFIG_LOGGER_RX_GPIO == CONFIG_LOGGER_RTS_GPIO) {
         return ESP_ERR_INVALID_ARG;
     }
+#endif
     return ESP_OK;
 }
 

@@ -16,24 +16,34 @@ menu "Water logger"
         default 2
 
     config LOGGER_TX_GPIO
-        int "RS485 TX GPIO (-1 until wired)"
-        range -1 48
-        default -1
+        int "RS485 TX GPIO (ESP32 -> transceiver DI)"
+        range 0 48
+        default 16
+        help
+            GPIO16 on the iMaker ESP32 board with built-in RS485.
 
     config LOGGER_RX_GPIO
-        int "RS485 RX GPIO (-1 until wired)"
-        range -1 48
-        default -1
+        int "RS485 RX GPIO (transceiver RO -> ESP32)"
+        range 0 48
+        default 17
+        help
+            GPIO17 on the iMaker ESP32 board with built-in RS485.
 
     config LOGGER_RTS_GPIO
-        int "RS485 RTS/DE GPIO (-1 until wired)"
+        int "RS485 RTS/DE GPIO (-1 = transceiver switches direction itself)"
         range -1 48
         default -1
+        help
+            Leave -1 for auto-direction transceivers such as the one on the iMaker board.
+            Set a GPIO when DE/RE must be driven by the ESP32; the UART then runs in
+            RS485 half-duplex mode and drives it as RTS.
 
     config LOGGER_BAUD
         int "RS485 baud rate"
         range 1200 115200
-        default 115200
+        default 9600
+        help
+            DDSU666 meters run at 2400, 4800 or 9600 bps (BAud register); the test meter uses 9600.
 
     choice LOGGER_PARITY
         prompt "RS485 parity"

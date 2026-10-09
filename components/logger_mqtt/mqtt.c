@@ -161,8 +161,9 @@ esp_err_t mqtt_send(const char *payload)
     if (client == NULL || !atomic_load(&connected)) {
         return ESP_ERR_INVALID_STATE;
     }
+    /* store=true: without it esp-mqtt refuses to enqueue QoS 0 messages (returns -1). */
     msg_id = esp_mqtt_client_enqueue(client, CONFIG_LOGGER_MQTT_TOPIC, payload,
-                                      (int)strlen(payload), CONFIG_LOGGER_MQTT_QOS, 0, false);
+                                      (int)strlen(payload), CONFIG_LOGGER_MQTT_QOS, 0, true);
     if (msg_id < 0) {
         return ESP_ERR_NO_MEM;
     }

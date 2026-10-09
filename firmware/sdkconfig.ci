@@ -1,2 +1,2 @@
-# CI builds do not provide board wiring, meter profiles, Wi-Fi or a broker.
-# Configure these on a real board before boot; unset GPIOs deliberately fail validation.
+# CI builds do not provide meter profiles, Wi-Fi, a broker or room IDs; set them on a real board.
+# RS485 defaults match the iMaker ESP32 board: UART2, TX GPIO16, RX GPIO17, no DE pin, 9600 bps.

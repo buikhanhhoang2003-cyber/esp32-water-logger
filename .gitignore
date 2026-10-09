@@ -1,0 +1,9 @@
+# ESP-IDF build output and per-board configuration (sdkconfig holds Wi-Fi and MQTT passwords)
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+
+# Python
+__pycache__/
+*.pyc
