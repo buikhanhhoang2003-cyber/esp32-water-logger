@@ -168,7 +168,7 @@ class BridgeTransport(Transport):
                 return
         raise TransportError(
             f"Không thấy firmware cầu nối trả lời trên {self.port}.\n"
-            "• Đã nạp firmware tools/ddsu666/firmware vào ESP32 chưa? (tools\\ddsu666\\ddsu666.bat flash)\n"
+            "• Đã nạp firmware cầu nối (tools/ddsu666/firmware) vào ESP32 chưa? Lệnh: dev.bat bridge\n"
             "• Đúng cổng COM của ESP32 chưa?\n"
             "• Đã đóng idf.py monitor / Arduino Serial Monitor đang giữ cổng chưa?")
 

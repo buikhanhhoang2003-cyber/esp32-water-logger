@@ -7,3 +7,7 @@ managed_components/
 # Python
 __pycache__/
 *.pyc
+
+# Node.js (tools/local-broker)
+node_modules/
+messages.jsonl

@@ -42,17 +42,26 @@ reconnection after their clients have started.
 | `firmware/` | ESP-IDF project of the logger (`water_logger`) |
 | `components/` | Logger components: `modbus`, `meter`, `telemetry`, `logger_mqtt` |
 | `tools/ddsu666/` | PC app and ESP32 RS485 bridge firmware to read and configure CHINT DDSU666 meters ([README](tools/ddsu666/README.md)) |
+| `tools/local-broker/` | Local MQTT broker (Node.js) that receives the logger's messages during tests |
 | `references/` | Vendor sample code for the iMaker ESP32 board |
+| `dev.bat`, `dev.ps1` | One script for building, flashing and running all of the above |
 
-# Build
+# Build, flash and run
 
-Requires ESP-IDF 5.3 or later.
+`dev.bat` drives everything; `dev.bat help` lists every command and option.
 
 ```
-idf.py -C firmware set-target esp32
-idf.py -C firmware menuconfig        # "Water logger": Wi-Fi, MQTT broker, building and room IDs
-idf.py -C firmware -p COM16 flash monitor
+dev.bat config                 # logger settings: Wi-Fi, MQTT broker, building and room IDs
+dev.bat flash -Port COM16      # build and flash the logger, then show its log
+dev.bat broker                 # local MQTT broker that receives the logger's messages
+dev.bat bridge -Port COM16     # flash the DDSU666 RS485 bridge and open the meter tool
+dev.bat test                   # tests of the DDSU666 tool and the broker
 ```
 
-RS485 defaults (UART2, TX GPIO16, RX GPIO17, no DE pin, 9600 bps 8N1) match the iMaker board and
-a DDSU666 meter. `sdkconfig` holds Wi-Fi and MQTT credentials and is not committed.
+The script activates ESP-IDF 5.3+ from `C:\Espressif` by itself (`-IdfPath` to point elsewhere) and needs
+Python 3 with Tkinter for the meter tool and Node.js 20+ for the broker. RS485 defaults (UART2, TX GPIO16,
+RX GPIO17, no DE pin, 9600 bps 8N1) match the iMaker board and a DDSU666 meter. `firmware/sdkconfig`
+holds Wi-Fi and MQTT credentials and is not committed.
+
+Step-by-step guide in Vietnamese (configuration, MQTT test, DDSU666 tool, troubleshooting):
+[docs/huong-dan-build-nap-chay.md](docs/huong-dan-build-nap-chay.md).

@@ -15,26 +15,19 @@ PC (app GUI) ──USB── ESP32 UART0 ─┐
 App gửi khung Modbus RTU hoàn chỉnh (đã có CRC) xuống ESP32 qua USB; ESP32 đẩy lên bus RS485 và trả lại
 nguyên văn phản hồi của đồng hồ. Mọi xử lý Modbus (CRC, mã lỗi, giải mã float) nằm ở phía PC.
 
-## Cách nhanh nhất: `ddsu666.bat`
-
-Cắm ESP32 vào USB rồi nhấp đúp `ddsu666.bat` (hoặc chạy trong terminal). Script sẽ build firmware, nạp vào
-ESP32 (tự tìm cổng CH340/CP210x, nhiều cổng thì hỏi), rồi mở app và kết nối luôn.
+## Cách nhanh nhất: `dev.bat` ở gốc repo
 
 ```
-ddsu666.bat                      build + nạp + mở app (mặc định)
-ddsu666.bat all -Port COM16      như trên, chỉ định cổng
-ddsu666.bat build                chỉ build firmware
-ddsu666.bat flash -Port COM16    build (nếu cần) + nạp
-ddsu666.bat run                  chỉ mở app (tự cài pyserial nếu thiếu)
-ddsu666.bat monitor -Port COM16  xem serial của ESP32 (gõ PING + Enter, Ctrl+] để thoát)
-ddsu666.bat clean                xóa firmware\build
-ddsu666.bat test                 chạy bộ test của app
-ddsu666.bat ports                liệt kê cổng COM
+dev.bat bridge -Port COM16     build + nạp firmware cầu nối + mở app, kết nối luôn
+dev.bat app                    chỉ mở app (board đã có firmware cầu nối)
+dev.bat bridge-build           chỉ build firmware cầu nối
+dev.bat monitor -Port COM16    xem serial của ESP32 (gõ PING + Enter, Ctrl+] để thoát)
+dev.bat test                   chạy test (app này và broker)
+dev.bat ports                  liệt kê cổng COM
 ```
 
-Tùy chọn thêm: `-FlashBaud 115200` (nạp chậm hơn nếu cáp/USB kém), `-IdfPath C:\...\esp-idf` (chỉ định ESP-IDF).
-Script dùng ESP-IDF đang mở nếu chạy từ *ESP-IDF PowerShell*, nếu không thì tự kích hoạt bản
-`C:\Espressif\frameworks\esp-idf-v5.*` mới nhất. App cũng nhận tham số dòng lệnh:
+Bỏ `-Port` thì script tự tìm cổng USB-serial, nhiều cổng thì hỏi. `dev.bat help` liệt kê mọi lệnh và tùy
+chọn (`-FlashBaud`, `-IdfPath`…). App cũng nhận tham số dòng lệnh:
 `python gui\ddsu666_gui.py --port COM16 --mode bridge --connect` (`--mode`: `bridge`, `direct`, `sim`).
 
 Các mục 2–3 dưới đây là cách làm thủ công tương đương.
@@ -101,7 +94,7 @@ python -m pip install -r requirements.txt
 python ddsu666_gui.py
 ```
 
-hoặc `ddsu666.bat run`. Cần Python ≥ 3.8 có Tkinter (bản cài từ python.org đã có sẵn).
+hoặc `dev.bat app` ở gốc repo. Cần Python ≥ 3.8 có Tkinter (bản cài từ python.org đã có sẵn).
 Chưa có phần cứng: chọn chế độ **Mô phỏng** để thử toàn bộ chức năng với một đồng hồ giả lập.
 
 ## 4. Sử dụng
