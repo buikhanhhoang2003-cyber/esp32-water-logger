@@ -14,6 +14,8 @@ param(
     [int]$FlashBaud = 460800,
     [switch]$NoMonitor,
     [int]$BrokerPort = 1883,
+    [string]$SshHost = "",
+    [int]$SshPort = 0,
     [string]$IdfPath = ""
 )
 
@@ -25,6 +27,7 @@ $LoggerFw = Join-Path $Root "firmware"
 $BridgeFw = Join-Path $Root "tools\ddsu666\firmware"
 $Gui = Join-Path $Root "tools\ddsu666\gui"
 $Broker = Join-Path $Root "tools\local-broker"
+$LinuxBroker = Join-Path $Root "tools\linux-broker"
 
 $Help = @"
 Cách dùng:  dev.bat <lệnh> [-Port COMx] [tùy chọn]
@@ -41,8 +44,10 @@ Công cụ đồng hồ DDSU666 (tools\ddsu666\)
   bridge-build   chỉ build firmware cầu nối
   app            chỉ mở app (board đã có firmware cầu nối)
 
-Broker MQTT để test (tools\local-broker\)
-  broker         chạy broker trên máy này (Ctrl+C để dừng)
+Broker MQTT
+  broker         chạy broker để test trên máy này (tools\local-broker\, Ctrl+C để dừng)
+  broker-deploy  cài broker Mosquitto lên host Linux qua SSH (cần -SshHost); cổng và tài khoản
+                 MQTT của ESP32 lưu trên host (/etc/logsigt/broker.env), lần đầu script hỏi
 
 Khác
   test           chạy toàn bộ test (app DDSU666 + broker)
@@ -53,7 +58,9 @@ Tùy chọn
   -Port COM16       cổng của board; bỏ trống thì tự tìm cổng USB-serial
   -FlashBaud 115200 tốc độ nạp (mặc định 460800; giảm nếu nạp lỗi)
   -NoMonitor        flash xong không mở log
-  -BrokerPort 1884  cổng broker (mặc định 1883)
+  -BrokerPort 1884  cổng broker chạy trên máy này (mặc định 1883)
+  -SshHost user@IP  host Linux (Debian/Ubuntu) cho broker-deploy; tài khoản cần quyền sudo
+  -SshPort 2222     cổng SSH của host (mặc định 22, hoặc Port đặt cho host đó trong ~/.ssh/config)
   -IdfPath C:\...   thư mục ESP-IDF (mặc định tìm C:\Espressif\frameworks\esp-idf-v5.*)
 
 Ví dụ
@@ -61,10 +68,12 @@ Ví dụ
   dev.bat flash -Port COM16
   dev.bat bridge -Port COM16
   dev.bat broker
+  dev.bat broker-deploy -SshHost ubuntu@192.168.1.50
+  dev.bat broker-deploy -SshHost ubuntu@192.168.1.50 -SshPort 2222
 "@
 
 $Commands = @("help", "build", "flash", "monitor", "config", "clean", "bridge", "bridge-build", "app", "broker",
-              "test", "ports")
+              "broker-deploy", "test", "ports")
 
 function Write-Step([string]$Text) {
     Write-Host ""
@@ -249,6 +258,74 @@ function Test-LoggerConfig {
     return $ok
 }
 
+# ---------------------------------------------------------------- Linux broker (broker-deploy)
+
+function Invoke-BrokerDeploy {
+    if (-not $SshHost) { Stop-WithError "Thiếu -SshHost, ví dụ: dev.bat broker-deploy -SshHost ubuntu@192.168.1.50" }
+    foreach ($tool in @("ssh", "tar")) {
+        if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+            Stop-WithError "Không tìm thấy $tool. Bật OpenSSH Client trong Settings > System > Optional features."
+        }
+    }
+    if ($SshPort -lt 0 -or $SshPort -gt 65535) { Stop-WithError "-SshPort phải là số từ 1 đến 65535." }
+    $hostName = ($SshHost -split '@')[-1]
+    # No -SshPort: leave the port to ssh (22, or the Port set for this host in ~/.ssh/config).
+    $sshOptions = @()
+    if ($SshPort) { $sshOptions = @("-p", "$SshPort") }
+    $ssh = (@("ssh") + $sshOptions) -join " "
+
+    # Send the script (LF line endings, whatever git did on checkout) as a tar stream into a fresh
+    # mktemp directory, then run it with sudo in a terminal: the first run asks for the MQTT account,
+    # which stays on the host in /etc/logsigt/broker.env.
+    $stage = Join-Path $env:TEMP "esp32-water-logger_broker_deploy"
+    Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    New-Item -ItemType Directory $stage | Out-Null
+    $utf8 = New-Object System.Text.UTF8Encoding($false)
+    try {
+        $script = [IO.File]::ReadAllText((Join-Path $LinuxBroker "setup-broker.sh")) -replace "`r`n", "`n"
+        [IO.File]::WriteAllText((Join-Path $stage "setup-broker.sh"), $script, $utf8)
+        $send = Join-Path $stage "send.cmd"
+        [IO.File]::WriteAllText($send, ("@tar --format=ustar -cf - -C `"$stage`" setup-broker.sh | " +
+            "$ssh $SshHost `"d=`$(mktemp -d) && tar -xf - -C `$d && echo `$d`"`r`n"), $utf8)
+        Write-Step "Gửi script cài đặt lên $SshHost (ssh có thể hỏi mật khẩu đăng nhập host)"
+        $remoteDir = (& cmd /c $send | Select-Object -Last 1)
+        if ($LASTEXITCODE -ne 0 -or $remoteDir -notmatch '^/[\w./-]+$') {
+            Stop-WithError "Không gửi được lên $SshHost. Thử '$ssh $SshHost' để kiểm tra đăng nhập và cổng SSH."
+        }
+    } finally {
+        Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
+    }
+
+    Write-Step "Cài broker trên $SshHost (sudo có thể hỏi mật khẩu; lần đầu script hỏi tài khoản MQTT cho ESP32)"
+    & ssh @sshOptions -t $SshHost "sudo bash $remoteDir/setup-broker.sh; s=`$?; rm -rf $remoteDir; exit `$s"
+    if ($LASTEXITCODE -ne 0) { Stop-WithError "Cài broker trên $SshHost thất bại (xem log ở trên)." }
+
+    # The port is a host setting: read it back from the broker configuration (world-readable, no secret).
+    $port = & ssh @sshOptions $SshHost "sed -n 's/^listener //p' /etc/mosquitto/conf.d/logsigt.conf" |
+                Select-Object -First 1
+    if ($port -match '^\d+$') { $port = [int]$port } else { $port = $BrokerPort }
+
+    Write-Step "Kiểm tra từ máy này: $hostName cổng $port"
+    $client = New-Object System.Net.Sockets.TcpClient
+    try {
+        $client.ConnectAsync($hostName, $port).Wait(5000) | Out-Null
+        if ($client.Connected) { Write-Host "Kết nối được tới ${hostName}:$port." -ForegroundColor Green }
+        else { Write-Note "Không kết nối được tới ${hostName}:${port}: kiểm tra firewall/security group của host." }
+    } catch {
+        Write-Note "Không kết nối được tới ${hostName}:$port ($($_.Exception.InnerException.Message))."
+    } finally { $client.Dispose() }
+
+    $uri = Read-Sdkconfig "LOGGER_MQTT_URI"
+    if ($uri -notmatch "^mqtts?://$([regex]::Escape($hostName)):$port/?$") {
+        Write-Note ("Firmware đang dùng MQTT URI `"$uri`". Để logger gửi lên broker này: dev.bat config, đặt " +
+                    "'MQTT broker URI' = mqtt://${hostName}:$port, rồi dev.bat flash.")
+    }
+    if (-not (Read-Sdkconfig "LOGGER_MQTT_USER")) {
+        Write-Note ("Firmware chưa đặt 'MQTT username'/'MQTT password': đặt giống tài khoản trên host " +
+                    "(xem: $ssh -t $SshHost sudo cat /etc/logsigt/broker.env), rồi dev.bat flash.")
+    }
+}
+
 # ---------------------------------------------------------------- main
 
 if ($Commands -notcontains $Command) {
@@ -340,6 +417,9 @@ switch ($Command) {
         $appArgs = @()
         if ($Port) { $appArgs = @("--port", $Port.ToUpper(), "--mode", "bridge") }
         Start-App $Python $appArgs
+    }
+    "broker-deploy" {
+        Invoke-BrokerDeploy
     }
     "broker" {
         Install-BrokerPackages

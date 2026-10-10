@@ -1,0 +1,2 @@
+# Shell scripts run on Linux: keep LF even when core.autocrlf is on.
+*.sh text eol=lf
