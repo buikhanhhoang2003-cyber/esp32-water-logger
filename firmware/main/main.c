@@ -25,6 +25,7 @@
 #include "modbus.h"
 #include "mqtt.h"
 #include "record_queue.h"
+#include "status_led.h"
 #include "telemetry.h"
 
 #define PAYLOAD_LIMIT 4096
@@ -116,6 +117,20 @@ static bool clock_now(int64_t *epoch_s)
 static int64_t uptime_s(void)
 {
     return esp_timer_get_time() / 1000000;
+}
+
+/* For the network LED: called from the LED task, so only cheap state queries. */
+static status_net_t network_state(void)
+{
+    int rssi;
+
+    if (CONFIG_LOGGER_MQTT_URI[0] == '\0') {
+        return STATUS_NET_OFFLINE;
+    }
+    if (mqtt_is_connected()) {
+        return STATUS_NET_ONLINE;
+    }
+    return mqtt_wifi_rssi(&rssi) ? STATUS_NET_BROKER_CONNECTING : STATUS_NET_WIFI_CONNECTING;
 }
 
 #if CONFIG_LOGGER_FAKE_ELECTRIC
@@ -210,7 +225,9 @@ static void store_record(const room_reading_t readings[], size_t count)
         }
     } else {
         err = mqtt_publish_acked(CONFIG_LOGGER_MQTT_TOPIC, payload, CONFIG_LOGGER_MQTT_QOS, ACK_TIMEOUT_MS);
-        if (err != ESP_OK) {
+        if (err == ESP_OK) {
+            status_led_sent();
+        } else {
             ESP_LOGW(TAG, "Record %lu dropped (no queue, not acknowledged): %s",
                      (unsigned long)meta.seq, esp_err_to_name(err));
         }
@@ -254,6 +271,7 @@ static unsigned drain_queue(int64_t deadline_us)
             break;
         }
         ++sent;
+        status_led_sent();
     }
     return sent;
 }
@@ -338,6 +356,7 @@ static void run_cycle(const room_address_t rooms[], room_reading_t readings[], s
         tally(readings[index].electric.status, &ok, &failed, &unconfigured);
         tally(readings[index].water.status, &ok, &failed, &unconfigured);
     }
+    status_led_cycle(ok, failed);
     store_record(readings, count);
     if (CONFIG_LOGGER_MQTT_HEARTBEAT_TOPIC[0] != '\0' && mqtt_is_connected() &&
         (!heartbeat_sent || start_us - heartbeat_us >= (int64_t)CONFIG_LOGGER_HEARTBEAT_S * 1000000)) {
@@ -366,17 +385,25 @@ void app_main(void)
     make_device_id();
     ESP_LOGI(TAG, "Starting %s firmware %s on ESP-IDF %s", device_id, esp_app_get_description()->version,
              esp_get_idf_version());
+    /* Stall limit: long enough for a cycle in which every meter times out and a backlog drains. */
+    err = status_led_init(network_state, 3 * CONFIG_LOGGER_POLL_MS + 120000);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Status LEDs unavailable: %s", esp_err_to_name(err));
+    }
     if (CONFIG_LOGGER_BUILDING_ID[0] == '\0') {
         ESP_LOGE(TAG, "Building identifier is empty; set it in the Water logger menu");
+        status_led_fault();
         return;
     }
     if (CONFIG_LOGGER_MQTT_TOPIC[0] == '\0') {
         ESP_LOGE(TAG, "MQTT telemetry topic is empty; set it in the Water logger menu");
+        status_led_fault();
         return;
     }
     if (!meter_parse_rooms(CONFIG_LOGGER_ROOMS, rooms, METER_MAX_ROOMS, &count)) {
         ESP_LOGE(TAG, "Room meter addresses \"%s\" invalid: expected electric:water Modbus addresses 1-247, "
                       "all different, e.g. 1:2 or 1:2,3:4 (max %d rooms)", CONFIG_LOGGER_ROOMS, METER_MAX_ROOMS);
+        status_led_fault();
         return;
     }
     ESP_LOGI(TAG, "Building=%s rooms=%u", CONFIG_LOGGER_BUILDING_ID, (unsigned)count);
@@ -392,6 +419,7 @@ void app_main(void)
     err = modbus_init();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "RS485 initialization failed: %s", esp_err_to_name(err));
+        status_led_fault();
         return;
     }
     err = start_network();

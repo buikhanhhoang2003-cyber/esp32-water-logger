@@ -154,6 +154,38 @@ menu "Water logger"
         string "SNTP server (empty = records carry ts null)"
         default "pool.ntp.org"
 
+    menu "Status LEDs"
+        config LOGGER_LED_SYSTEM_GPIO
+            int "System LED GPIO (-1 = none)"
+            range -1 33
+            default 5
+            help
+                On while starting, double blink every 2 s while read cycles keep completing,
+                fast blink on a fault (bad configuration, RS485 init failed, main loop stuck).
+
+        config LOGGER_LED_NETWORK_GPIO
+            int "Network LED GPIO (-1 = none)"
+            range -1 33
+            default 12
+            help
+                Off without a broker, slow blink while joining Wi-Fi, fast blink while the
+                broker is unreachable, on when connected (dark briefly per acknowledged record).
+                GPIO12 selects the flash voltage at reset: the LED must not pull it high then
+                (an LED from the pin to GND is fine).
+
+        config LOGGER_LED_METER_GPIO
+            int "Meter LED GPIO (-1 = none)"
+            range -1 33
+            default 13
+            help
+                Short flash after each cycle in which every meter answered, slow blink when
+                some failed, on when all failed.
+
+        config LOGGER_LED_ACTIVE_LOW
+            bool "LEDs light when the pin is low"
+            default n
+    endmenu
+
     config LOGGER_FAKE_ELECTRIC
         bool "Send simulated electric readings (test without meters)"
         default n
