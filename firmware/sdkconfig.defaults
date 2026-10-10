@@ -1,3 +1,12 @@
 # Enable the built-in certificate bundle for TLS server verification
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+
+# The iMaker ESP32 board has 4 MB flash. Wi-Fi, MQTT and TLS alone fill a 1 MB app
+# partition, so partitions.csv has a 1.5 MB app plus the offline record queue.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# The main task publishes over MQTT/TLS and drains the queue; 3.5 KB left ~1 KB headroom.
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

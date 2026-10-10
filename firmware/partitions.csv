@@ -1,0 +1,6 @@
+# Name,   Type, SubType, Offset,   Size,     Flags
+# 4 MB flash: 1.5 MB app plus a 1 MB NVS partition for the offline record queue.
+nvs,      data, nvs,     0x9000,   0x6000,
+phy_init, data, phy,     0xf000,   0x1000,
+factory,  app,  factory, 0x10000,  0x180000,
+queue,    data, nvs,     0x190000, 0x100000,

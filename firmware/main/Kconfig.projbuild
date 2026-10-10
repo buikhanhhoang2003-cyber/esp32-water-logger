@@ -4,11 +4,13 @@ menu "Water logger"
         default "building_1"
 
     config LOGGER_ROOMS
-        string "Room slave pairs (electric:water,...)"
+        string "Room meter addresses (electric:water, e.g. 1:2,3:4)"
         default ""
         help
-            Room numbers follow list order. Example: 1:2,3:4.
-            IDs must be unique and between 1 and 247; at most 16 rooms.
+            Modbus addresses of each room's electric and water meter, one electric:water
+            pair per room, rooms separated by commas. Room numbers follow list order.
+            Example: 1:2,3:4 = room 1 has meters 1 and 2, room 2 has meters 3 and 4.
+            Addresses must be numbers 1-247, all different; at most 16 rooms.
 
     config LOGGER_UART_PORT
         int "RS485 UART port"
@@ -113,4 +115,51 @@ menu "Water logger"
         int "MQTT reconnect interval (ms)"
         range 1000 600000
         default 10000
+
+    config LOGGER_DEVICE_ID
+        string "Device identifier (empty = ESP32_ + last 3 MAC bytes)"
+        default ""
+        help
+            Names this logger in records, heartbeats, the MQTT client ID and the status
+            topic; must be unique per broker. Empty uses ESP32_XXXXXX from the Wi-Fi MAC
+            address. At most 32 characters.
+
+    config LOGGER_MQTT_HEARTBEAT_TOPIC
+        string "MQTT heartbeat topic (empty disables heartbeats)"
+        default "water-logger/heartbeat"
+
+    config LOGGER_MQTT_STATUS_TOPIC
+        string "MQTT online/offline status topic prefix (empty disables)"
+        default "water-logger/status"
+        help
+            On connect the logger publishes {"device_id":...,"online":true} retained to
+            <prefix>/<device id>; when the connection is lost the broker publishes
+            {"online":false} there (MQTT last will, after about 45 s).
+
+    config LOGGER_HEARTBEAT_S
+        int "Heartbeat interval (s)"
+        range 10 3600
+        default 60
+
+    config LOGGER_QUEUE_CAPACITY
+        int "Offline record queue capacity (records)"
+        range 10 5000
+        default 2000
+        help
+            Every cycle's record is stored in the "queue" flash partition and removed only
+            after the broker acknowledged it (QoS 1/2). When the queue is full the oldest
+            record is overwritten. Changing this value discards the records still queued.
+
+    config LOGGER_SNTP_SERVER
+        string "SNTP server (empty = records carry ts null)"
+        default "pool.ntp.org"
+
+    config LOGGER_FAKE_ELECTRIC
+        bool "Send simulated electric readings (test without meters)"
+        default n
+        help
+            Fills every room's electric reading with plausible made-up values
+            (about 230 V, a varying current, power and a rising energy total)
+            so Wi-Fi and MQTT can be tested without RS485 meters. The readings
+            are sent with status "simulated". Never enable on a deployed logger.
 endmenu
